@@ -161,7 +161,7 @@ function getArcRadiusForWidth(width) {
   return 400;
 }
 
-const HERO_REELS_COUNT = 5;
+const HERO_REELS_COUNT = 0;
 
 export default function Home() {
   const homeRef = useRef(null);

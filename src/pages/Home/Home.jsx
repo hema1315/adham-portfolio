@@ -17,6 +17,7 @@ import { siFacebook, siGmail, siInstagram, siWhatsapp } from "simple-icons";
 import Intro from "../../components/intro/Intro";
 import "./home.css";
 import { Link, useLocation } from "react-router";
+import { supabase } from "../../supabaseClient";
 
 const TIMELINE_STAGES = [
   {
@@ -96,14 +97,6 @@ const services = [
   },
 ];
 
-const folders = [
-  { label: "العقارات", href: "/projects/real-estate" },
-  { label: "التدريس", href: "/projects/teaching" },
-  { label: "صناعة المحتوي", href: "/projects/social-media" },
-  { label: "تاريخ", href: "/projects/history" },
-  { label: "السفر", href: "/projects/travel" },
-];
-
 const socialLinks = [
   {
     label: "واتساب",
@@ -132,14 +125,6 @@ const socialLinks = [
     color: "#1877f2",
     external: true,
   },
-];
-
-const DEFAULT_REELS = [
-  { id: "r1", video: "", category: "عقارات" },
-  { id: "r2", video: "", category: "ريلز" },
-  { id: "r3", video: "", category: "يوتيوب" },
-  { id: "r4", video: "", category: "موشن" },
-  { id: "r5", video: "", category: "سوشيال" },
 ];
 
 function BrandIcon({ icon, label }) {
@@ -192,7 +177,8 @@ export default function Home() {
   const [playheadPos, setPlayheadPos] = useState(6);
   const [activeStage, setActiveStage] = useState(TIMELINE_STAGES[0]);
 
-  const [heroReels, setHeroReels] = useState(DEFAULT_REELS);
+  const [heroReels, setHeroReels] = useState([]);
+  const [folders, setFolders] = useState([]);
 
   useEffect(() => {
     let interval = null;
@@ -268,22 +254,48 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch("/projects.json")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const reels = data.slice(0, HERO_REELS_COUNT).map((p) => ({
-            id: p.id,
-            video: p.video,
-            category: p.category,
+    // 1. Fetch Categories for the Arc Carousel from Supabase ONLY
+    supabase
+      .from("categories")
+      .select("id, name, slug")
+      .order("sort_order", { ascending: true })
+      .then(({ data: cats, error }) => {
+        if (!error && cats) {
+          setFolders(
+            cats.map((c) => ({
+              id: c.id,
+              label: c.name,
+              href: `/projects/${c.slug}`,
+            }))
+          );
+        } else {
+          setFolders([]);
+        }
+      })
+      .catch((err) => console.error("خطأ في تحميل الأقسام:", err));
+
+    // 2. Fetch Hero Reels from Supabase ONLY
+    supabase
+      .from("videos")
+      .select("id, video_url, is_hero")
+      .order("is_hero", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(HERO_REELS_COUNT)
+      .then(({ data: vids, error }) => {
+        if (!error && vids) {
+          const reels = vids.map((v) => ({
+            id: v.id,
+            video: v.video_url,
           }));
           setHeroReels(reels);
+        } else {
+          setHeroReels([]);
         }
       })
       .catch((err) => console.error("خطأ في تحميل فيديوهات الهيرو:", err));
   }, []);
 
-  const getFolderStyle = (index) => {
+    const getFolderStyle = (index) => {
     const total = folders.length;
     const visibleRadius = Math.min(2, Math.floor((total - 1) / 2));
     const diff = circularDiff(index, centerIndex, total);
@@ -303,9 +315,12 @@ export default function Home() {
     const scale = isCenter ? 1.2 : 1 - Math.abs(diff) * 0.14;
 
     return {
-      opacity: isCenter ? 1 : 0.55 - Math.abs(diff) * 0.1,
+      opacity: 1,
       pointerEvents: "auto",
       zIndex: 10 - Math.abs(diff),
+      filter: isCenter
+        ? "none"
+        : `brightness(${0.75 - (Math.abs(diff) - 1) * 0.2})`,
       transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`,
     };
   };
@@ -346,40 +361,42 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="hero-reels-orbit">
-              {heroReels.map((reel, index) => (
-                <div
-                  key={reel.id || index}
-                  className="hero-reel-slot"
-                  style={{
-                    "--slot-index": index,
-                    "--total-slots": heroReels.length,
-                  }}
-                >
-                  <div className="hero-reel-card">
-                    {reel.video ? (
-                      <video
-                        src={reel.video}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        preload="auto"
-                        ref={(el) => {
-                          if (el && el.paused) {
-                            el.play().catch(() => {});
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="reel-placeholder">
-                        <FiFilm />
-                      </div>
-                    )}
+            {heroReels.length > 0 && (
+              <div className="hero-reels-orbit">
+                {heroReels.map((reel, index) => (
+                  <div
+                    key={reel.id || index}
+                    className="hero-reel-slot"
+                    style={{
+                      "--slot-index": index,
+                      "--total-slots": heroReels.length,
+                    }}
+                  >
+                    <div className="hero-reel-card">
+                      {reel.video ? (
+                        <video
+                          src={reel.video}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          preload="auto"
+                          ref={(el) => {
+                            if (el && el.paused) {
+                              el.play().catch(() => {});
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="reel-placeholder">
+                          <FiFilm />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -487,48 +504,58 @@ export default function Home() {
         <h2 className="reveal">المشاريع حسب المجال</h2>
         <p className="projects-p">حابب تشوف شغلي في مجال معين؟ اضغط عليه</p>
 
-        <div className="arc-wrap reveal">
-          <button
-            className="arc-arrow prev"
-            type="button"
-            aria-label="المشروع التالي"
-            onClick={() =>
-              setCenterIndex((current) => (current + 1) % folders.length)
-            }
-          >
-            <FiChevronRight />
-          </button>
-
-          <div className="arc-track">
-            {folders.map((folder, index) => (
-              <Link
-                className={`folder ${index === centerIndex ? "is-center" : ""}`}
-                to={folder.href}
-                style={getFolderStyle(index)}
-                key={folder.href}
-              >
-                <div className="folder-icon">
-                  <FolderIcon />
-                </div>
-
-                <span>{folder.label}</span>
-              </Link>
-            ))}
+        {folders.length === 0 ? (
+          <div className="empty-folders-state reveal">
+            <div className="empty-folder-box">
+              <FolderIcon />
+            </div>
+            <p>لا توجد أقسام مشاريع مضافة حتى الآن.</p>
+            <small>يمكنك إضافة أقسام وفيديوهات جديدة من لوحة التحكم.</small>
           </div>
+        ) : (
+          <div className="arc-wrap reveal">
+            <button
+              className="arc-arrow prev"
+              type="button"
+              aria-label="المشروع التالي"
+              onClick={() =>
+                setCenterIndex((current) => (current + 1) % folders.length)
+              }
+            >
+              <FiChevronRight />
+            </button>
 
-          <button
-            className="arc-arrow next"
-            type="button"
-            aria-label="المشروع السابق"
-            onClick={() =>
-              setCenterIndex(
-                (current) => (current - 1 + folders.length) % folders.length,
-              )
-            }
-          >
-            <FiChevronLeft />
-          </button>
-        </div>
+            <div className="arc-track">
+              {folders.map((folder, index) => (
+                <Link
+                  className={`folder ${index === centerIndex ? "is-center" : ""}`}
+                  to={folder.href}
+                  style={getFolderStyle(index)}
+                  key={folder.href}
+                >
+                  <div className="folder-icon">
+                    <FolderIcon />
+                  </div>
+
+                  <span>{folder.label}</span>
+                </Link>
+              ))}
+            </div>
+
+            <button
+              className="arc-arrow next"
+              type="button"
+              aria-label="المشروع السابق"
+              onClick={() =>
+                setCenterIndex(
+                  (current) => (current - 1 + folders.length) % folders.length,
+                )
+              }
+            >
+              <FiChevronLeft />
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="services" id="services">

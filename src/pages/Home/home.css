@@ -748,15 +748,17 @@ section[id] {
 
 .arc-wrap {
   position: relative;
-  max-width: 1150px;
-  height: 460px;
+  max-width: 1250px;
+  height: 480px;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: visible;
+  perspective: 1200px;
 }
 
 .arc-track {
   position: absolute;
   inset: 0;
+  transform-style: preserve-3d;
 }
 
 .projects-p {
@@ -778,12 +780,22 @@ section[id] {
   text-decoration: none;
   transition:
     transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1),
-    opacity 0.6s ease;
+    opacity 0.6s ease,
+    filter 0.6s ease;
+}
+
+.folder:hover:not(.is-center) {
+  filter: brightness(1.05) drop-shadow(0 10px 25px rgba(62, 207, 163, 0.3)) !important;
 }
 
 .folder-icon {
   width: 112px;
   height: 92px;
+  transition: transform 0.3s ease;
+}
+
+.folder:hover .folder-icon {
+  transform: translateY(-4px);
 }
 
 .folder-icon svg {
@@ -799,18 +811,21 @@ section[id] {
   color: var(--color-text-gray);
   font-size: 1.1rem;
   font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.3s ease;
 }
 
 .folder.is-center span {
   color: var(--color-text-white);
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 700;
+  text-shadow: 0 0 15px rgba(62, 207, 163, 0.4);
 }
 
 .arc-arrow {
   position: absolute;
   top: 50%;
-  z-index: 5;
+  z-index: 40;
   display: grid;
   width: 60px;
   height: 60px;
@@ -1306,4 +1321,37 @@ section[id] {
   .profile-glow {
     animation: none !important;
   }
+}
+
+.empty-folders-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  background: rgba(15, 41, 37, 0.25);
+  border: 1px dashed rgba(62, 207, 163, 0.25);
+  border-radius: 24px;
+  max-width: 600px;
+  margin: 30px auto 0;
+}
+
+.empty-folders-state .empty-folder-box {
+  width: 64px;
+  height: 64px;
+  color: var(--color-primary);
+  opacity: 0.6;
+}
+
+.empty-folders-state p {
+  font-family: var(--font-arabic-bold);
+  font-size: 1.2rem;
+  color: var(--color-text-white);
+  margin: 0;
+}
+
+.empty-folders-state small {
+  color: var(--color-text-gray);
+  font-size: 0.95rem;
 }

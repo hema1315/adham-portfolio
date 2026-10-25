@@ -51,3 +51,19 @@
     font-size: 0.78rem;
   }
 }
+
+.site-footer__admin-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+  color: rgba(176, 176, 176, 0.35);
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.site-footer__admin-link:hover {
+  color: #818cf8;
+  transform: scale(1.15);
+}

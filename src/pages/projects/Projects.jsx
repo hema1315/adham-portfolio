@@ -13,39 +13,8 @@ import {
   FiArrowRight,
   FiFilm,
 } from "react-icons/fi";
+import { supabase } from "../../supabaseClient";
 import "./projects.css";
-
-
-const CATEGORIES = {
-  "real-estate": {
-    name: "العقارات",
-    jsonCategory: "Real Estate",
-    description: "استعراض لأبرز مشاريع وتغطيات العقارات بإخراج سينمائي مميز.",
-  },
-  teaching: {
-    name: "التدريس",
-    jsonCategory: "Teaching",
-    description: "فيديوهات تعليمية ودورات تدريبية بمونتاج تفاعلي وسلس للمتعلم.",
-  },
-  "social-media": {
-    name: "صناعة المحتوى",
-    jsonCategory: "Social Media",
-    description:
-      "ريلز وفيديوهات قصيرة مصممة لجذب الانتباه وزيادة التفاعل والانتشار.",
-  },
-  history: {
-    name: "تاريخ",
-    jsonCategory: "History",
-    description:
-      "سرد وثائقي وتاريخي جذاب يجمع بين المؤثرات الصوتية والبصرية الغامرة.",
-  },
-  travel: {
-    name: "السفر",
-    jsonCategory: "Travel",
-    description: "لقطات وتجارب سفر مفعمة بالحيوية والألوان ونبض المغامرة.",
-  },
-};
-
 
 function VideoCard({ videoSrc, title, id }) {
   const videoRef = useRef(null);
@@ -291,48 +260,78 @@ function VideoCard({ videoSrc, title, id }) {
 
 export default function Projects() {
   const { id } = useParams();
-  const [allProjects, setAllProjects] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    async function fetchProjects() {
+    async function fetchData() {
       setIsLoading(true);
       try {
-        const res = await fetch("/projects.json");
-        const data = await res.json();
-        setAllProjects(data);
+        // 1. Fetch Categories from Supabase ONLY
+        const { data: catsData, error: catsErr } = await supabase
+          .from("categories")
+          .select("*")
+          .order("sort_order", { ascending: true });
+
+        const cats = !catsErr && catsData ? catsData : [];
+        setCategoriesList(cats);
+
+        // Find active category by slug
+        const matchedCat = cats.find(
+          (c) => c.slug?.toLowerCase() === id?.toLowerCase()
+        );
+
+        if (matchedCat?.id) {
+          // Fetch videos from Supabase ONLY for this category
+          const { data: vids, error: vidErr } = await supabase
+            .from("videos")
+            .select("*")
+            .eq("category_id", matchedCat.id)
+            .order("created_at", { ascending: false });
+
+          if (!vidErr && vids) {
+            setProjects(
+              vids.map((v) => ({
+                id: v.id,
+                video: v.video_url,
+                title: v.title,
+              }))
+            );
+          } else {
+            setProjects([]);
+          }
+        } else {
+          setProjects([]);
+        }
       } catch (err) {
         console.error("خطأ أثناء جلب الفيديوهات:", err);
+        setProjects([]);
       } finally {
         setIsLoading(false);
       }
     }
-    fetchProjects();
+
+    fetchData();
     setCurrentPage(1);
   }, [id]);
 
-  const currentCategory = CATEGORIES[id] || {
-    name: "مشاريع متنوعة",
-    jsonCategory: "",
-    description: "استعراض لمجموعة من الأعمال والمشاريع المميزة.",
+  const currentCategory = categoriesList.find(
+    (c) => c.slug?.toLowerCase() === id?.toLowerCase()
+  ) || {
+    name: categoriesList.length === 0 ? "المشاريع" : "مشاريع متنوعة",
+    description:
+      categoriesList.length === 0
+        ? "استعراض للمشاريع والأعمال."
+        : "استعراض لمجموعة من الأعمال والمشاريع المميزة.",
   };
 
-  const filteredProjects = allProjects.filter((p) => {
-    if (!currentCategory.jsonCategory) return true;
-    return (
-      p.category?.toLowerCase() ===
-        currentCategory.jsonCategory.toLowerCase() ||
-      p.category === currentCategory.name
-    );
-  });
-
-  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const totalPages = Math.ceil(projects.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentVideos = filteredProjects.slice(
+  const currentVideos = projects.slice(
     startIndex,
     startIndex + itemsPerPage,
   );
@@ -359,13 +358,13 @@ export default function Projects() {
         <p className="category-desc">{currentCategory.description}</p>
 
         <nav className="categories-pills" aria-label="أقسام المشاريع">
-          {Object.entries(CATEGORIES).map(([catKey, catData]) => (
+          {categoriesList.map((cat) => (
             <Link
-              key={catKey}
-              to={`/projects/${catKey}`}
-              className={`cat-pill ${catKey === id ? "active" : ""}`}
+              key={cat.slug}
+              to={`/projects/${cat.slug}`}
+              className={`cat-pill ${cat.slug === id ? "active" : ""}`}
             >
-              {catData.name}
+              {cat.name}
             </Link>
           ))}
         </nav>
@@ -377,7 +376,7 @@ export default function Projects() {
             <div className="spinner"></div>
             <p>جاري تحميل المشاريع...</p>
           </div>
-        ) : filteredProjects.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="empty-state">
             <FiFilm className="empty-icon" />
             <h3>لا توجد مشاريع مضافة حالياً في هذا المجال</h3>
@@ -396,7 +395,7 @@ export default function Projects() {
               ))}
             </div>
 
-            {filteredProjects.length > itemsPerPage && (
+            {projects.length > itemsPerPage && (
               <div className="pagination">
                 <button
                   type="button"

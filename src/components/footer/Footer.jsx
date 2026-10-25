@@ -1,4 +1,5 @@
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
+import { FiLock } from "react-icons/fi";
 import "./footer.css";
 
 const footerLinks = [
@@ -42,6 +43,13 @@ function Footer() {
 
       <p className="site-footer__copyright">
         © {year} Adham Elsayed. All rights reserved.
+        <Link
+          to="/admin"
+          className="site-footer__admin-link"
+          title="لوحة تحكم أدهم"
+        >
+          <FiLock />
+        </Link>
       </p>
     </footer>
   );

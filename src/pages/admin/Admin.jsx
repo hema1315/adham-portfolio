@@ -590,13 +590,7 @@ export default function Admin() {
                 >
                   <FiUploadCloud /> رفع ملف من الجهاز (أقل من 50MB)
                 </button>
-                <button
-                  type="button"
-                  className={`switch-btn ${uploadType === "link" ? "active" : ""}`}
-                  onClick={() => setUploadType("link")}
-                >
-                  <FiLink /> رابط خارجي مباشر (للفيديوهات الكبيرة)
-                </button>
+                
               </div>
 
               {uploadType === "file" ? (
